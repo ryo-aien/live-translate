@@ -250,18 +250,42 @@ type ConversationItem = {
 }
 ```
 
-### Backend側の責務
+### Backend側の実装詳細
 
 ```txt
 - OpenAI APIキーを保持する
-- ブラウザ用の短命 client secret を発行する
+- ブラウザ用の短命 client secret を発行する（POST /v1/realtime/translations/client_secrets）
+- モデル: gpt-realtime-translate
+- セッション設定:
+  - session.audio.output.language に出力言語コードを指定
+  - session.audio.input.transcription.model に "gpt-realtime-whisper" を指定
+    （これがないと session.input_transcript.delta イベントが発火しない）
+- OpenAI レスポンスの value フィールドが client secret の値（形式: ek_xxxx）
 - APIキーをフロントへ返さない
 - CORSを必要最小限にする
+```
+
+#### OpenAI へのリクエスト例
+
+```json
+{
+  "session": {
+    "model": "gpt-realtime-translate",
+    "audio": {
+      "input": {
+        "transcription": { "model": "gpt-realtime-whisper" }
+      },
+      "output": { "language": "en" }
+    }
+  }
+}
 ```
 
 ---
 
 ## 13. Frontend WebRTC仕様
+
+SDP オファーの送信先: `POST https://api.openai.com/v1/realtime/translations/calls`
 
 ```ts
 const stream = await navigator.mediaDevices.getUserMedia({
@@ -286,10 +310,36 @@ const dc = pc.createDataChannel("oai-events");
 dc.onmessage = (event) => {
   const data = JSON.parse(event.data);
 
-  if (data.type.includes("transcript")) {
-    // 字幕更新
+  // 翻訳セッション専用イベント名（voice-agentセッションとは異なる）
+  if (data.type === "session.input_transcript.delta") {
+    // 原文字幕更新: data.delta
+  } else if (data.type === "session.output_transcript.delta") {
+    // 翻訳字幕更新: data.delta
+  } else if (data.type === "session.closed") {
+    // セッション終了 → 会話履歴保存
   }
 };
+
+// SDP オファーを作成して OpenAI へ送信し、WebRTC 接続を確立する
+const offer = await pc.createOffer();
+await pc.setLocalDescription(offer);
+
+const sdpResponse = await fetch(
+  "https://api.openai.com/v1/realtime/translations/calls",
+  {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${clientSecret}`,
+      "Content-Type": "application/sdp",
+    },
+    body: offer.sdp,
+  }
+);
+
+await pc.setRemoteDescription({
+  type: "answer",
+  sdp: await sdpResponse.text(),
+});
 ```
 
 ---
