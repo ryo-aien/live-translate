@@ -1,5 +1,6 @@
-import { useState, useCallback } from "react";
-import { TalkPanel } from "./components/TalkPanel";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { ChatBubble } from "./components/ChatBubble";
+import { ActionBar } from "./components/ActionBar";
 import { CenterBar } from "./components/CenterBar";
 import { HistorySheet } from "./components/HistorySheet";
 import { useRealtimeTranslation } from "./hooks/useRealtimeTranslation";
@@ -14,19 +15,34 @@ export default function App() {
   const [autoMode, setAutoMode] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
 
-  // ── Manual mode state ──
+  // ── manual mode state ──
   const [activeDirection, setActiveDirection] = useState<Direction | null>(null);
   const [manualInput, setManualInput] = useState("");
   const [manualOutput, setManualOutput] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // ── Auto mode state ──
+  // ── auto mode state ──
   const [meInput, setMeInput] = useState("");
   const [meOutput, setMeOutput] = useState("");
   const [partnerInput, setPartnerInput] = useState("");
   const [partnerOutput, setPartnerOutput] = useState("");
 
   const { history, addItem } = useConversationHistory();
+  const chatAreaRef = useRef<HTMLDivElement>(null);
+
+  // scroll to bottom whenever content grows
+  useEffect(() => {
+    const el = chatAreaRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [
+    history.length,
+    manualInput.length,
+    manualOutput.length,
+    meInput.length,
+    meOutput.length,
+    partnerInput.length,
+    partnerOutput.length,
+  ]);
 
   // ────────────── Manual mode ──────────────
   const handleManualSessionClosed = useCallback(
@@ -64,8 +80,7 @@ export default function App() {
   });
 
   const manualIsBusy = manualState !== "idle" && manualState !== "error";
-  const manualIsStreaming =
-    manualState === "recording" || manualState === "playing" || manualState === "ready";
+  const manualIsConnecting = manualState === "connecting";
 
   const handleManualToggle = useCallback(
     (direction: Direction) => {
@@ -124,65 +139,45 @@ export default function App() {
     const next = !autoMode;
     setAutoMode(next);
     if (!next) {
-      // switching OFF auto
       autoStop();
-      setMeInput("");
-      setMeOutput("");
-      setPartnerInput("");
-      setPartnerOutput("");
+      setMeInput(""); setMeOutput("");
+      setPartnerInput(""); setPartnerOutput("");
       setErrorMessage(null);
     } else {
-      // switching ON auto — start immediately
       manualStop();
       setActiveDirection(null);
-      setManualInput("");
-      setManualOutput("");
+      setManualInput(""); setManualOutput("");
       setErrorMessage(null);
       void autoStart(partnerLanguage);
     }
   }, [autoMode, autoStart, autoStop, manualStop, partnerLanguage]);
 
-  // restart auto when partner language changes while auto is on
   const handleChangePartnerLanguage = useCallback(
     (lang: LanguageCode) => {
       setPartnerLanguage(lang);
       if (autoMode) {
         autoStop();
-        setMeInput("");
-        setMeOutput("");
-        setPartnerInput("");
-        setPartnerOutput("");
+        setMeInput(""); setMeOutput("");
+        setPartnerInput(""); setPartnerOutput("");
         void autoStart(lang);
       }
     },
     [autoMode, autoStart, autoStop]
   );
 
-  const autoListening = autoState === "listening";
-  const autoIsMe = activeSpeaker === "me";
-  const autoIsPartner = activeSpeaker === "partner";
+  // ── live bubble (currently streaming) ──
+  const liveBubble = autoMode
+    ? activeSpeaker === "me" && (meInput || meOutput)
+      ? { direction: "me_to_partner" as Direction, sourceText: meInput, translatedText: meOutput }
+      : activeSpeaker === "partner" && (partnerInput || partnerOutput)
+      ? { direction: "partner_to_me" as Direction, sourceText: partnerInput, translatedText: partnerOutput }
+      : null
+    : activeDirection && (manualInput || manualOutput)
+    ? { direction: activeDirection, sourceText: manualInput, translatedText: manualOutput }
+    : null;
 
   return (
     <div className="app">
-      {/* ── 相手エリア（上半分・180°回転） ── */}
-      <div className="partner-area">
-        <TalkPanel
-          role="partner"
-          tapLabel="相手が話す"
-          directionLabel="相手の言語 → 日本語"
-          active={autoMode ? autoIsPartner : (activeDirection === "partner_to_me" && manualState !== "connecting")}
-          connecting={autoMode ? autoState === "starting" : (activeDirection === "partner_to_me" && manualState === "connecting")}
-          disabled={autoMode ? false : (manualIsBusy && activeDirection !== "partner_to_me")}
-          inputText={autoMode ? partnerInput : (activeDirection === "partner_to_me" ? manualInput : "")}
-          outputText={autoMode ? partnerOutput : (activeDirection === "partner_to_me" ? manualOutput : "")}
-          isStreaming={autoMode ? autoIsPartner : (manualIsStreaming && activeDirection === "partner_to_me")}
-          onToggle={autoMode ? () => {} : () => handleManualToggle("partner_to_me")}
-          autoMode={autoMode}
-          autoListening={autoListening && !autoIsPartner}
-        />
-      </div>
-
-      {/* ── センターバー ── */}
       <CenterBar
         partnerLanguage={partnerLanguage}
         onChangePartnerLanguage={handleChangePartnerLanguage}
@@ -195,25 +190,43 @@ export default function App() {
         disabled={autoMode ? false : manualIsBusy}
       />
 
-      {/* ── 自分エリア（下半分） ── */}
-      <div className="me-area">
-        <TalkPanel
-          role="me"
-          tapLabel="自分が話す"
-          directionLabel="日本語 → 相手の言語"
-          active={autoMode ? autoIsMe : (activeDirection === "me_to_partner" && manualState !== "connecting")}
-          connecting={autoMode ? autoState === "starting" : (activeDirection === "me_to_partner" && manualState === "connecting")}
-          disabled={autoMode ? false : (manualIsBusy && activeDirection !== "me_to_partner")}
-          inputText={autoMode ? meInput : (activeDirection === "me_to_partner" ? manualInput : "")}
-          outputText={autoMode ? meOutput : (activeDirection === "me_to_partner" ? manualOutput : "")}
-          isStreaming={autoMode ? autoIsMe : (manualIsStreaming && activeDirection === "me_to_partner")}
-          onToggle={autoMode ? () => {} : () => handleManualToggle("me_to_partner")}
-          autoMode={autoMode}
-          autoListening={autoListening && !autoIsMe}
-        />
+      <div className="chat-area" ref={chatAreaRef}>
+        <div className="chat-messages">
+          {history.length === 0 && !liveBubble && (
+            <div className="chat-empty">
+              <p className="chat-empty-icon">💬</p>
+              <p>話しかけてください</p>
+            </div>
+          )}
+          {history.map((item) => (
+            <ChatBubble
+              key={item.id}
+              direction={item.direction}
+              sourceText={item.sourceText}
+              translatedText={item.translatedText}
+            />
+          ))}
+          {liveBubble && (
+            <ChatBubble
+              direction={liveBubble.direction}
+              sourceText={liveBubble.sourceText}
+              translatedText={liveBubble.translatedText}
+              isStreaming
+            />
+          )}
+        </div>
       </div>
 
-      {/* ── エラー ── */}
+      <ActionBar
+        autoMode={autoMode}
+        activeDirection={activeDirection}
+        isConnecting={manualIsConnecting}
+        isBusy={manualIsBusy}
+        onToggle={handleManualToggle}
+        autoState={autoState}
+        activeSpeaker={activeSpeaker}
+      />
+
       {errorMessage && (
         <div className="floating-error" onClick={() => setErrorMessage(null)}>
           <span>⚠️</span>
@@ -221,7 +234,6 @@ export default function App() {
         </div>
       )}
 
-      {/* ── 会話履歴シート ── */}
       {showHistory && (
         <HistorySheet items={history} onClose={() => setShowHistory(false)} />
       )}
