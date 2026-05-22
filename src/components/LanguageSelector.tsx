@@ -9,8 +9,8 @@ type Props = {
 
 export function LanguageSelector({ value, onChange, disabled }: Props) {
   return (
-    <div className="section">
-      <div className="section-label">相手の言語</div>
+    <div className="card">
+      <div className="lang-label">相手の言語</div>
       <select
         className="language-select"
         value={value}

@@ -1,12 +1,11 @@
 import { useState, useCallback } from "react";
-import { LanguageSelector } from "./components/LanguageSelector";
-import { TalkButton } from "./components/TalkButton";
-import { TranscriptPanel } from "./components/TranscriptPanel";
-import { ConversationHistory } from "./components/ConversationHistory";
+import { TalkPanel } from "./components/TalkPanel";
+import { CenterBar } from "./components/CenterBar";
+import { HistorySheet } from "./components/HistorySheet";
 import { useRealtimeTranslation } from "./hooks/useRealtimeTranslation";
 import { useConversationHistory } from "./hooks/useConversationHistory";
 import type { Direction, LanguageCode } from "./types/translation";
-import { ERROR_MESSAGES, LANGUAGE_LABELS } from "./types/translation";
+import { ERROR_MESSAGES } from "./types/translation";
 import type { AppErrorCode } from "./types/translation";
 
 export default function App() {
@@ -15,28 +14,17 @@ export default function App() {
   const [inputTranscript, setInputTranscript] = useState("");
   const [outputTranscript, setOutputTranscript] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   const { history, addItem } = useConversationHistory();
-
-  const handleInputTranscript = useCallback((text: string) => {
-    setInputTranscript(text);
-  }, []);
-
-  const handleOutputTranscript = useCallback((text: string) => {
-    setOutputTranscript(text);
-  }, []);
 
   const handleSessionClosed = useCallback(
     (inputText: string, outputText: string) => {
       if (activeDirection && (inputText || outputText)) {
-        const sourceLanguage: LanguageCode =
-          activeDirection === "me_to_partner" ? "ja" : partnerLanguage;
-        const targetLanguage: LanguageCode =
-          activeDirection === "me_to_partner" ? partnerLanguage : "ja";
         addItem({
           direction: activeDirection,
-          sourceLanguage,
-          targetLanguage,
+          sourceLanguage: activeDirection === "me_to_partner" ? "ja" : partnerLanguage,
+          targetLanguage: activeDirection === "me_to_partner" ? partnerLanguage : "ja",
           sourceText: inputText,
           translatedText: outputText,
         });
@@ -52,18 +40,18 @@ export default function App() {
   }, []);
 
   const { state, start, stop, audioEnabled, toggleAudio } = useRealtimeTranslation({
-    onInputTranscript: handleInputTranscript,
-    onOutputTranscript: handleOutputTranscript,
+    onInputTranscript: useCallback((t: string) => setInputTranscript(t), []),
+    onOutputTranscript: useCallback((t: string) => setOutputTranscript(t), []),
     onSessionClosed: handleSessionClosed,
     onError: handleError,
   });
 
   const isBusy = state !== "idle" && state !== "error";
+  const isStreaming = state === "recording" || state === "playing" || state === "ready";
 
   const handleToggle = useCallback(
     (direction: Direction) => {
       if (activeDirection === direction) {
-        // 同じボタンを押したら停止
         stop();
         return;
       }
@@ -72,68 +60,71 @@ export default function App() {
       setInputTranscript("");
       setOutputTranscript("");
       setErrorMessage(null);
-      const target: LanguageCode =
-        direction === "me_to_partner" ? partnerLanguage : "ja";
-      void start(direction, target);
+      void start(direction, direction === "me_to_partner" ? partnerLanguage : "ja");
     },
     [activeDirection, isBusy, partnerLanguage, start, stop]
   );
 
-  const partnerLabel = LANGUAGE_LABELS[partnerLanguage];
+  const isPartnerActive = activeDirection === "partner_to_me";
+  const isMeActive = activeDirection === "me_to_partner";
 
   return (
     <div className="app">
-      <div className="header">
-        <span>Voice Bridge</span>
-        <button
-          className={`audio-toggle${audioEnabled ? "" : " muted"}`}
-          onClick={toggleAudio}
-          title={audioEnabled ? "音声オフ" : "音声オン"}
-        >
-          {audioEnabled ? "🔊" : "🔇"}
-        </button>
-      </div>
-
-      <LanguageSelector
-        value={partnerLanguage}
-        onChange={setPartnerLanguage}
-        disabled={isBusy}
-      />
-
-      <div className="section">
-        <TalkButton
-          label="自分が話す"
-          directionLabel={`日本語 → ${partnerLabel}`}
-          variant="me"
-          active={activeDirection === "me_to_partner"}
-          disabled={isBusy && activeDirection !== "me_to_partner"}
-          onToggle={() => handleToggle("me_to_partner")}
-        />
-      </div>
-
-      <div className="section">
-        <TalkButton
-          label="相手が話す"
-          directionLabel={`${partnerLabel} → 日本語`}
-          variant="partner"
-          active={activeDirection === "partner_to_me"}
-          disabled={isBusy && activeDirection !== "partner_to_me"}
+      {/* ── 相手エリア（上半分・180°回転） ── */}
+      <div className="partner-area">
+        <TalkPanel
+          role="partner"
+          tapLabel="相手が話す"
+          directionLabel={`相手の言語 → 日本語`}
+          active={isPartnerActive && state !== "connecting"}
+          connecting={isPartnerActive && state === "connecting"}
+          disabled={isBusy && !isPartnerActive}
+          inputText={isPartnerActive ? inputTranscript : ""}
+          outputText={isPartnerActive ? outputTranscript : ""}
+          isStreaming={isStreaming && isPartnerActive}
           onToggle={() => handleToggle("partner_to_me")}
         />
       </div>
 
-      {state === "connecting" && (
-        <div className="connecting-indicator">接続中…</div>
-      )}
-
-      {errorMessage && <div className="error-banner">{errorMessage}</div>}
-
-      <TranscriptPanel
-        inputText={inputTranscript}
-        outputText={outputTranscript}
+      {/* ── センターバー ── */}
+      <CenterBar
+        partnerLanguage={partnerLanguage}
+        onChangePartnerLanguage={setPartnerLanguage}
+        audioEnabled={audioEnabled}
+        onToggleAudio={toggleAudio}
+        historyCount={history.length}
+        onOpenHistory={() => setShowHistory(true)}
+        disabled={isBusy}
       />
 
-      <ConversationHistory items={history} />
+      {/* ── 自分エリア（下半分） ── */}
+      <div className="me-area">
+        <TalkPanel
+          role="me"
+          tapLabel="自分が話す"
+          directionLabel={`日本語 → 相手の言語`}
+          active={isMeActive && state !== "connecting"}
+          connecting={isMeActive && state === "connecting"}
+          disabled={isBusy && !isMeActive}
+          inputText={isMeActive ? inputTranscript : ""}
+          outputText={isMeActive ? outputTranscript : ""}
+          isStreaming={isStreaming && isMeActive}
+          onToggle={() => handleToggle("me_to_partner")}
+        />
+      </div>
+
+      {/* ── エラー表示 ── */}
+      {errorMessage && (
+        <div className="floating-error" onClick={() => setErrorMessage(null)}>
+          <span>⚠️</span>
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      {/* ── 会話履歴シート ── */}
+      {showHistory && (
+        <HistorySheet items={history} onClose={() => setShowHistory(false)} />
+      )}
     </div>
   );
 }

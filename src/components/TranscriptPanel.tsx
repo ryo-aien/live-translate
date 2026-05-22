@@ -1,23 +1,29 @@
 type Props = {
   inputText: string;
   outputText: string;
+  isStreaming: boolean;
 };
 
-export function TranscriptPanel({ inputText, outputText }: Props) {
+export function TranscriptPanel({ inputText, outputText, isStreaming }: Props) {
   return (
-    <div className="transcript-panel">
-      <div className="transcript-block">
-        <div className="transcript-block-label">原文</div>
+    <>
+      <div>
+        <div className="transcript-label">原文</div>
         <div className={`transcript-text${inputText ? "" : " empty"}`}>
           {inputText || "…"}
+          {isStreaming && inputText && <span className="stream-cursor" />}
         </div>
       </div>
-      <div className="transcript-block">
-        <div className="transcript-block-label">翻訳</div>
+      <div className="transcript-divider" />
+      <div>
+        <div className="transcript-label">翻訳</div>
         <div className={`transcript-text${outputText ? "" : " empty"}`}>
           {outputText || "…"}
+          {isStreaming && outputText && (
+            <span className="stream-cursor" style={{ background: "var(--partner)" }} />
+          )}
         </div>
       </div>
-    </div>
+    </>
   );
 }
