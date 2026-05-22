@@ -3,6 +3,7 @@ import { TalkPanel } from "./components/TalkPanel";
 import { CenterBar } from "./components/CenterBar";
 import { HistorySheet } from "./components/HistorySheet";
 import { useRealtimeTranslation } from "./hooks/useRealtimeTranslation";
+import { useAutoTranslation } from "./hooks/useAutoTranslation";
 import { useConversationHistory } from "./hooks/useConversationHistory";
 import type { Direction, LanguageCode } from "./types/translation";
 import { ERROR_MESSAGES } from "./types/translation";
@@ -10,15 +11,25 @@ import type { AppErrorCode } from "./types/translation";
 
 export default function App() {
   const [partnerLanguage, setPartnerLanguage] = useState<LanguageCode>("en");
-  const [activeDirection, setActiveDirection] = useState<Direction | null>(null);
-  const [inputTranscript, setInputTranscript] = useState("");
-  const [outputTranscript, setOutputTranscript] = useState("");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [autoMode, setAutoMode] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+
+  // ── Manual mode state ──
+  const [activeDirection, setActiveDirection] = useState<Direction | null>(null);
+  const [manualInput, setManualInput] = useState("");
+  const [manualOutput, setManualOutput] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // ── Auto mode state ──
+  const [meInput, setMeInput] = useState("");
+  const [meOutput, setMeOutput] = useState("");
+  const [partnerInput, setPartnerInput] = useState("");
+  const [partnerOutput, setPartnerOutput] = useState("");
 
   const { history, addItem } = useConversationHistory();
 
-  const handleSessionClosed = useCallback(
+  // ────────────── Manual mode ──────────────
+  const handleManualSessionClosed = useCallback(
     (inputText: string, outputText: string) => {
       if (activeDirection && (inputText || outputText)) {
         addItem({
@@ -34,39 +45,122 @@ export default function App() {
     [activeDirection, partnerLanguage, addItem]
   );
 
-  const handleError = useCallback((code: AppErrorCode) => {
+  const handleManualError = useCallback((code: AppErrorCode) => {
     setErrorMessage(ERROR_MESSAGES[code]);
     setActiveDirection(null);
   }, []);
 
-  const { state, start, stop, audioEnabled, toggleAudio } = useRealtimeTranslation({
-    onInputTranscript: useCallback((t: string) => setInputTranscript(t), []),
-    onOutputTranscript: useCallback((t: string) => setOutputTranscript(t), []),
-    onSessionClosed: handleSessionClosed,
-    onError: handleError,
+  const {
+    state: manualState,
+    start: manualStart,
+    stop: manualStop,
+    audioEnabled,
+    toggleAudio,
+  } = useRealtimeTranslation({
+    onInputTranscript: useCallback((t: string) => setManualInput(t), []),
+    onOutputTranscript: useCallback((t: string) => setManualOutput(t), []),
+    onSessionClosed: handleManualSessionClosed,
+    onError: handleManualError,
   });
 
-  const isBusy = state !== "idle" && state !== "error";
-  const isStreaming = state === "recording" || state === "playing" || state === "ready";
+  const manualIsBusy = manualState !== "idle" && manualState !== "error";
+  const manualIsStreaming =
+    manualState === "recording" || manualState === "playing" || manualState === "ready";
 
-  const handleToggle = useCallback(
+  const handleManualToggle = useCallback(
     (direction: Direction) => {
       if (activeDirection === direction) {
-        stop();
+        manualStop();
         return;
       }
-      if (isBusy) return;
+      if (manualIsBusy) return;
       setActiveDirection(direction);
-      setInputTranscript("");
-      setOutputTranscript("");
+      setManualInput("");
+      setManualOutput("");
       setErrorMessage(null);
-      void start(direction, direction === "me_to_partner" ? partnerLanguage : "ja");
+      void manualStart(
+        direction,
+        direction === "me_to_partner" ? partnerLanguage : "ja"
+      );
     },
-    [activeDirection, isBusy, partnerLanguage, start, stop]
+    [activeDirection, manualIsBusy, partnerLanguage, manualStart, manualStop]
   );
 
-  const isPartnerActive = activeDirection === "partner_to_me";
-  const isMeActive = activeDirection === "me_to_partner";
+  // ────────────── Auto mode ──────────────
+  const handleAutoUtteranceDone = useCallback(
+    (speaker: "me" | "partner", inputText: string, outputText: string) => {
+      if (!inputText && !outputText) return;
+      addItem({
+        direction: speaker === "me" ? "me_to_partner" : "partner_to_me",
+        sourceLanguage: speaker === "me" ? "ja" : partnerLanguage,
+        targetLanguage: speaker === "me" ? partnerLanguage : "ja",
+        sourceText: inputText,
+        translatedText: outputText,
+      });
+    },
+    [partnerLanguage, addItem]
+  );
+
+  const handleAutoError = useCallback((code: AppErrorCode) => {
+    setErrorMessage(ERROR_MESSAGES[code]);
+  }, []);
+
+  const {
+    autoState,
+    activeSpeaker,
+    start: autoStart,
+    stop: autoStop,
+  } = useAutoTranslation({
+    onMeInput: useCallback((t: string) => setMeInput(t), []),
+    onMeOutput: useCallback((t: string) => setMeOutput(t), []),
+    onPartnerInput: useCallback((t: string) => setPartnerInput(t), []),
+    onPartnerOutput: useCallback((t: string) => setPartnerOutput(t), []),
+    onUtteranceDone: handleAutoUtteranceDone,
+    onError: handleAutoError,
+  });
+
+  // ────────────── Mode toggle ──────────────
+  const handleToggleAutoMode = useCallback(() => {
+    const next = !autoMode;
+    setAutoMode(next);
+    if (!next) {
+      // switching OFF auto
+      autoStop();
+      setMeInput("");
+      setMeOutput("");
+      setPartnerInput("");
+      setPartnerOutput("");
+      setErrorMessage(null);
+    } else {
+      // switching ON auto — start immediately
+      manualStop();
+      setActiveDirection(null);
+      setManualInput("");
+      setManualOutput("");
+      setErrorMessage(null);
+      void autoStart(partnerLanguage);
+    }
+  }, [autoMode, autoStart, autoStop, manualStop, partnerLanguage]);
+
+  // restart auto when partner language changes while auto is on
+  const handleChangePartnerLanguage = useCallback(
+    (lang: LanguageCode) => {
+      setPartnerLanguage(lang);
+      if (autoMode) {
+        autoStop();
+        setMeInput("");
+        setMeOutput("");
+        setPartnerInput("");
+        setPartnerOutput("");
+        void autoStart(lang);
+      }
+    },
+    [autoMode, autoStart, autoStop]
+  );
+
+  const autoListening = autoState === "listening";
+  const autoIsMe = activeSpeaker === "me";
+  const autoIsPartner = activeSpeaker === "partner";
 
   return (
     <div className="app">
@@ -75,26 +169,30 @@ export default function App() {
         <TalkPanel
           role="partner"
           tapLabel="相手が話す"
-          directionLabel={`相手の言語 → 日本語`}
-          active={isPartnerActive && state !== "connecting"}
-          connecting={isPartnerActive && state === "connecting"}
-          disabled={isBusy && !isPartnerActive}
-          inputText={isPartnerActive ? inputTranscript : ""}
-          outputText={isPartnerActive ? outputTranscript : ""}
-          isStreaming={isStreaming && isPartnerActive}
-          onToggle={() => handleToggle("partner_to_me")}
+          directionLabel="相手の言語 → 日本語"
+          active={autoMode ? autoIsPartner : (activeDirection === "partner_to_me" && manualState !== "connecting")}
+          connecting={autoMode ? autoState === "starting" : (activeDirection === "partner_to_me" && manualState === "connecting")}
+          disabled={autoMode ? false : (manualIsBusy && activeDirection !== "partner_to_me")}
+          inputText={autoMode ? partnerInput : (activeDirection === "partner_to_me" ? manualInput : "")}
+          outputText={autoMode ? partnerOutput : (activeDirection === "partner_to_me" ? manualOutput : "")}
+          isStreaming={autoMode ? autoIsPartner : (manualIsStreaming && activeDirection === "partner_to_me")}
+          onToggle={autoMode ? () => {} : () => handleManualToggle("partner_to_me")}
+          autoMode={autoMode}
+          autoListening={autoListening && !autoIsPartner}
         />
       </div>
 
       {/* ── センターバー ── */}
       <CenterBar
         partnerLanguage={partnerLanguage}
-        onChangePartnerLanguage={setPartnerLanguage}
+        onChangePartnerLanguage={handleChangePartnerLanguage}
         audioEnabled={audioEnabled}
         onToggleAudio={toggleAudio}
         historyCount={history.length}
         onOpenHistory={() => setShowHistory(true)}
-        disabled={isBusy}
+        autoMode={autoMode}
+        onToggleAutoMode={handleToggleAutoMode}
+        disabled={autoMode ? false : manualIsBusy}
       />
 
       {/* ── 自分エリア（下半分） ── */}
@@ -102,18 +200,20 @@ export default function App() {
         <TalkPanel
           role="me"
           tapLabel="自分が話す"
-          directionLabel={`日本語 → 相手の言語`}
-          active={isMeActive && state !== "connecting"}
-          connecting={isMeActive && state === "connecting"}
-          disabled={isBusy && !isMeActive}
-          inputText={isMeActive ? inputTranscript : ""}
-          outputText={isMeActive ? outputTranscript : ""}
-          isStreaming={isStreaming && isMeActive}
-          onToggle={() => handleToggle("me_to_partner")}
+          directionLabel="日本語 → 相手の言語"
+          active={autoMode ? autoIsMe : (activeDirection === "me_to_partner" && manualState !== "connecting")}
+          connecting={autoMode ? autoState === "starting" : (activeDirection === "me_to_partner" && manualState === "connecting")}
+          disabled={autoMode ? false : (manualIsBusy && activeDirection !== "me_to_partner")}
+          inputText={autoMode ? meInput : (activeDirection === "me_to_partner" ? manualInput : "")}
+          outputText={autoMode ? meOutput : (activeDirection === "me_to_partner" ? manualOutput : "")}
+          isStreaming={autoMode ? autoIsMe : (manualIsStreaming && activeDirection === "me_to_partner")}
+          onToggle={autoMode ? () => {} : () => handleManualToggle("me_to_partner")}
+          autoMode={autoMode}
+          autoListening={autoListening && !autoIsMe}
         />
       </div>
 
-      {/* ── エラー表示 ── */}
+      {/* ── エラー ── */}
       {errorMessage && (
         <div className="floating-error" onClick={() => setErrorMessage(null)}>
           <span>⚠️</span>

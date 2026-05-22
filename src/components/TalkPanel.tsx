@@ -9,6 +9,9 @@ type Props = {
   outputText: string;
   isStreaming: boolean;
   onToggle: () => void;
+  // auto mode
+  autoMode?: boolean;
+  autoListening?: boolean;
 };
 
 export function TalkPanel({
@@ -22,6 +25,8 @@ export function TalkPanel({
   outputText,
   isStreaming,
   onToggle,
+  autoMode = false,
+  autoListening = false,
 }: Props) {
   const cls = [
     "talk-panel",
@@ -80,6 +85,15 @@ export function TalkPanel({
             <span className="rec-dot" />
             タップして停止
           </div>
+        </div>
+      ) : autoMode && autoListening ? (
+        // Auto mode: waiting for speech
+        <div className="panel-center">
+          <div className="panel-auto-idle">
+            <span /><span /><span />
+          </div>
+          <p className="panel-status" style={{ opacity: 0.55, fontSize: 14 }}>待機中</p>
+          <p className="panel-direction">{directionLabel}</p>
         </div>
       ) : (
         <div className="panel-center">

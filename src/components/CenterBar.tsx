@@ -8,6 +8,8 @@ type Props = {
   onToggleAudio: () => void;
   historyCount: number;
   onOpenHistory: () => void;
+  autoMode: boolean;
+  onToggleAutoMode: () => void;
   disabled: boolean;
 };
 
@@ -18,6 +20,8 @@ export function CenterBar({
   onToggleAudio,
   historyCount,
   onOpenHistory,
+  autoMode,
+  onToggleAutoMode,
   disabled,
 }: Props) {
   return (
@@ -43,6 +47,15 @@ export function CenterBar({
       </div>
 
       <div className="center-actions">
+        <button
+          className={`bar-btn auto-btn${autoMode ? " auto-btn-on" : ""}`}
+          onClick={onToggleAutoMode}
+          aria-label={autoMode ? "自動検出オフ" : "自動検出オン"}
+          title={autoMode ? "自動話者検出: ON" : "自動話者検出: OFF"}
+        >
+          <span className="auto-btn-label">AUTO</span>
+          {autoMode && <span className="auto-dot" />}
+        </button>
         <button
           className={`bar-btn${audioEnabled ? "" : " bar-btn-off"}`}
           onClick={onToggleAudio}

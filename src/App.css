@@ -391,6 +391,63 @@ body {
   opacity: 0.4;
 }
 
+/* AUTO button */
+.auto-btn {
+  min-width: 52px;
+  height: 34px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  background: #f1f5f9;
+  color: #94a3b8;
+  position: relative;
+  gap: 4px;
+  flex-direction: row;
+  padding: 0 10px;
+  width: auto;
+}
+
+.auto-btn-on {
+  background: #4f46e5;
+  color: #fff;
+}
+
+.auto-btn-label {
+  pointer-events: none;
+  position: relative;
+  z-index: 1;
+}
+
+.auto-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #a5f3a0;
+  animation: blink 0.9s step-start infinite;
+  flex-shrink: 0;
+}
+
+/* auto mode idle wave (small, subtle) */
+.panel-auto-idle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  margin-bottom: 4px;
+}
+
+.panel-auto-idle span {
+  width: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.35);
+  animation: wave-bar 1.4s ease-in-out infinite;
+}
+
+.panel-auto-idle span:nth-child(1) { height: 8px;  animation-delay: 0s; }
+.panel-auto-idle span:nth-child(2) { height: 14px; animation-delay: 0.2s; }
+.panel-auto-idle span:nth-child(3) { height: 8px;  animation-delay: 0.4s; }
+
 .history-badge {
   position: absolute;
   top: 4px;
