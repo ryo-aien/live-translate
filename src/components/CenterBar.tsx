@@ -26,12 +26,12 @@ export function CenterBar({
 }: Props) {
   return (
     <div className="center-bar">
-      <div className="center-lang">
-        <span className="lang-fixed">日本語</span>
-        <span className="lang-arrow">⇄</span>
-        <div className="lang-select-wrap">
+      <div className="cb-lang">
+        <span className="cb-lang-fixed">日本語</span>
+        <span className="cb-lang-arrow">⇄</span>
+        <div className="cb-lang-sel-wrap">
           <select
-            className="lang-select"
+            className="cb-lang-sel"
             value={partnerLanguage}
             onChange={(e) => onChangePartnerLanguage(e.target.value as LanguageCode)}
             disabled={disabled}
@@ -42,35 +42,35 @@ export function CenterBar({
               </option>
             ))}
           </select>
-          <span className="lang-select-value">{LANGUAGE_LABELS[partnerLanguage]}</span>
+          <span className="cb-lang-val">{LANGUAGE_LABELS[partnerLanguage]}</span>
         </div>
       </div>
 
-      <div className="center-actions">
+      <div className="cb-actions">
         <button
-          className={`bar-btn auto-btn${autoMode ? " auto-btn-on" : ""}`}
+          className={`cb-btn auto-pill${autoMode ? " on" : ""}`}
           onClick={onToggleAutoMode}
           aria-label={autoMode ? "自動検出オフ" : "自動検出オン"}
           title={autoMode ? "自動話者検出: ON" : "自動話者検出: OFF"}
         >
-          <span className="auto-btn-label">AUTO</span>
-          {autoMode && <span className="auto-dot" />}
+          AUTO
+          {autoMode && <span className="auto-dot-live" />}
         </button>
         <button
-          className={`bar-btn${audioEnabled ? "" : " bar-btn-off"}`}
+          className={`cb-btn${audioEnabled ? "" : " muted"}`}
           onClick={onToggleAudio}
           aria-label={audioEnabled ? "音声をオフ" : "音声をオン"}
         >
           {audioEnabled ? "🔊" : "🔇"}
         </button>
         <button
-          className="bar-btn"
+          className="cb-btn"
           onClick={onOpenHistory}
           aria-label="会話履歴"
         >
           📋
           {historyCount > 0 && (
-            <span className="history-badge">
+            <span className="h-badge">
               {historyCount > 9 ? "9+" : historyCount}
             </span>
           )}

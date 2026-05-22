@@ -33,15 +33,15 @@ export function HistorySheet({ items, onClose }: Props) {
                   key={item.id}
                   className={`sheet-item ${item.direction === "me_to_partner" ? "me" : "partner"}`}
                 >
-                  <div className="sheet-item-bar" />
-                  <div className="sheet-item-body">
-                    <p className="sheet-item-meta">
+                  <div className="sheet-bar" />
+                  <div className="sheet-body-col">
+                    <p className="sheet-meta">
                       {formatTime(item.createdAt)}{" "}
                       {LANGUAGE_LABELS[item.sourceLanguage]} →{" "}
                       {LANGUAGE_LABELS[item.targetLanguage]}
                     </p>
-                    <p className="sheet-item-source">{item.sourceText}</p>
-                    <p className="sheet-item-translated">{item.translatedText}</p>
+                    <p className="sheet-src">{item.sourceText}</p>
+                    <p className="sheet-xlat">{item.translatedText}</p>
                   </div>
                 </div>
               ))}

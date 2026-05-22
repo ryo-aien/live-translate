@@ -9,7 +9,6 @@ type Props = {
   outputText: string;
   isStreaming: boolean;
   onToggle: () => void;
-  // auto mode
   autoMode?: boolean;
   autoListening?: boolean;
 };
@@ -34,6 +33,7 @@ export function TalkPanel({
     active ? "active" : "",
     connecting ? "connecting" : "",
     disabled ? "disabled" : "",
+    autoMode && autoListening && !active ? "auto-standby" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -49,57 +49,53 @@ export function TalkPanel({
       }}
       aria-label={active ? "タップして停止" : tapLabel}
     >
-      {/* pulse overlay when active */}
-      {(active || connecting) && <div className="panel-pulse" />}
-
       {connecting ? (
-        <div className="panel-center">
-          <div className="panel-spinner" />
-          <p className="panel-status">接続中…</p>
-          <p className="panel-direction">{directionLabel}</p>
+        <div className="p-connecting">
+          <div className="p-spinner" />
+          <p className="p-conn-label">接続中…</p>
+          <p className="p-conn-dir">{directionLabel}</p>
         </div>
       ) : active && (inputText || outputText) ? (
-        <div className="panel-transcript">
-          <p className="panel-source">
+        <div className="p-transcript">
+          <p className="p-translated">
+            {outputText}
+            {isStreaming && outputText && <span className="cur" />}
+          </p>
+          <div className="p-sep" />
+          <p className="p-source">
             {inputText}
             {isStreaming && inputText && <span className="cur" />}
           </p>
-          <div className="panel-hr" />
-          <p className="panel-translated">
-            {outputText}
-            {isStreaming && outputText && <span className="cur translated-cur" />}
-          </p>
-          <div className="panel-stop-hint">
+          <div className="p-stop">
             <span className="rec-dot" />
             タップして停止
           </div>
         </div>
       ) : active ? (
-        <div className="panel-center">
-          <div className="mic-wave">
+        <div className="p-listening">
+          <div className="wave">
             <span /><span /><span /><span /><span />
           </div>
-          <p className="panel-status">聞いています…</p>
-          <p className="panel-direction">{directionLabel}</p>
-          <div className="panel-stop-hint">
+          <p className="p-listening-label">聞いています…</p>
+          <p className="p-listening-dir">{directionLabel}</p>
+          <div className="p-stop">
             <span className="rec-dot" />
             タップして停止
           </div>
         </div>
       ) : autoMode && autoListening ? (
-        // Auto mode: waiting for speech
-        <div className="panel-center">
-          <div className="panel-auto-idle">
+        <div className="p-standby">
+          <div className="p-standby-wave">
             <span /><span /><span />
           </div>
-          <p className="panel-status" style={{ opacity: 0.55, fontSize: 14 }}>待機中</p>
-          <p className="panel-direction">{directionLabel}</p>
+          <p className="p-standby-label">待機中</p>
+          <p className="p-conn-dir">{directionLabel}</p>
         </div>
       ) : (
-        <div className="panel-center">
-          <div className="panel-mic">🎤</div>
-          <p className="panel-tap">{tapLabel}</p>
-          <p className="panel-direction">{directionLabel}</p>
+        <div className="p-idle">
+          <div className="p-idle-icon">🎤</div>
+          <p className="p-idle-label">{tapLabel}</p>
+          <p className="p-idle-dir">{directionLabel}</p>
         </div>
       )}
     </div>
