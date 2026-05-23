@@ -54,10 +54,22 @@ export function useConversationHistory() {
     []
   );
 
+  const deleteSession = useCallback((sessionId: string) => {
+    setHistory((prev) => {
+      const next = prev.filter((item) => item.sessionId !== sessionId);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }, []);
+
   const clearHistory = useCallback(() => {
     setHistory([]);
     localStorage.removeItem(STORAGE_KEY);
   }, []);
 
-  return { history, addItem, clearHistory };
+  return { history, addItem, deleteSession, clearHistory };
 }

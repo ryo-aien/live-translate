@@ -3,7 +3,7 @@ import { LANGUAGE_LABELS } from "../types/translation";
 import { groupBySessions } from "../hooks/useConversationHistory";
 import { Icon } from "./Icon";
 
-type Props = { items: ConversationItem[] };
+type Props = { items: ConversationItem[]; onDeleteSession: (sessionId: string) => void };
 
 const LANG_FLAG: Record<LanguageCode, string> = { ja: "🇯🇵", en: "🇺🇸", zh: "🇨🇳", ko: "🇰🇷" };
 
@@ -21,7 +21,7 @@ function formatDate(iso: string) {
   return d.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" });
 }
 
-export function Sidebar({ items }: Props) {
+export function Sidebar({ items, onDeleteSession }: Props) {
   const sessions = groupBySessions(items);
 
   // group sessions by date
@@ -36,16 +36,11 @@ export function Sidebar({ items }: Props) {
     <aside className="sidebar">
       <div className="side-hd">
         <h3>セッション</h3>
-        <button className="newbtn">
-          <Icon name="plus" size={12} />
-          新規
-        </button>
       </div>
 
       <div className="side-search">
         <Icon name="search" size={13} />
         <input placeholder="履歴を検索..." readOnly />
-        <kbd>⌘K</kbd>
       </div>
 
       <div className="sessions">
@@ -75,7 +70,17 @@ export function Sidebar({ items }: Props) {
                         <span className="session-count">{sess.items.length}件</span>
                       </div>
                     </div>
-                    <span className="session-time">{formatTime(sess.startedAt)}</span>
+                    <div className="session-right">
+                      <span className="session-time">{formatTime(sess.startedAt)}</span>
+                      <button
+                        className="session-del"
+                        title="削除"
+                        onClick={() => onDeleteSession(sess.sessionId)}
+                        type="button"
+                      >
+                        <Icon name="x" size={12} />
+                      </button>
+                    </div>
                   </div>
                 );
               })}

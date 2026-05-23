@@ -29,6 +29,7 @@ export function Icon({ name, size = 16, color = "currentColor", strokeWidth = 1.
     bookmark:     <svg {...p}><path d="M6 4h12v17l-6-4-6 4V4z"/></svg>,
     download:     <svg {...p}><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>,
     "panel-left":  <svg {...p}><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>,
+    x:             <svg {...p}><path d="M18 6 6 18M6 6l12 12"/></svg>,
   };
   return icons[name] ?? null;
 }

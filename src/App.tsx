@@ -46,7 +46,7 @@ export default function App() {
   // ── elapsed timer ──
   const [elapsed, setElapsed] = useState(0);
 
-  const { history, addItem } = useConversationHistory();
+  const { history, addItem, deleteSession } = useConversationHistory();
   const logRef = useRef<HTMLDivElement>(null);
 
   const handleUtteranceDone = useCallback(
@@ -241,7 +241,7 @@ export default function App() {
       />
 
       {/* ── Sidebar ── */}
-      <Sidebar items={history} />
+      <Sidebar items={history} onDeleteSession={deleteSession} />
 
       {/* ── Stage ── */}
       <main className="stage">
