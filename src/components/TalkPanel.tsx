@@ -1,26 +1,31 @@
-import { Icon } from "./Icon";
+import { useRef, useEffect } from "react";
 import type { LanguageCode } from "../types/translation";
 import { LANGUAGE_LABELS } from "../types/translation";
 
 const LANG_CODE: Record<LanguageCode, string> = { ja: "JA", en: "EN", zh: "ZH", ko: "KO" };
 
+export type PaneEntry = {
+  label: string;
+  text: string;
+  isLive?: boolean;
+};
+
 type Props = {
   who: string;
   lang: LanguageCode;
-  isSource: boolean;
-  transcript?: string;
-  translation?: string;
-  showCaret?: boolean;
+  entries: PaneEntry[];
 };
 
-export function TranslationPane({
-  who,
-  lang,
-  isSource,
-  transcript = "",
-  translation = "",
-  showCaret = false,
-}: Props) {
+export function TranslationPane({ who, lang, entries }: Props) {
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  // scroll to top (newest entry) when entries change or live text grows
+  const lastText = entries.at(-1)?.text ?? "";
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (el) el.scrollTop = 0;
+  }, [entries.length, lastText]);
+
   return (
     <section className="pane">
       <div className="pane-hd">
@@ -33,19 +38,21 @@ export function TranslationPane({
         </div>
       </div>
 
-      <div className="pane-body">
-        {isSource ? (
-          <div className={`transcript${!transcript ? " empty" : ""}`}>
-            {transcript || "マイクボタンを押して話し始めてください…"}
-            {showCaret && transcript && <span className="caret" />}
-          </div>
+      <div className="pane-body" ref={bodyRef}>
+        {entries.length === 0 ? (
+          <p className="pane-empty">マイクボタンを押して話し始めてください…</p>
         ) : (
-          <>
-            <div className={`translation${!translation ? " empty" : ""}`}>
-              {translation || "ここに翻訳が表示されます"}
-              {showCaret && translation && <span className="caret" />}
-            </div>
-          </>
+          <div className="pane-log">
+            {[...entries].reverse().map((entry, i) => (
+              <div key={i} className={`pane-entry pane-entry--${entry.label === "翻訳" ? "tx" : "src"}`}>
+                <span className="pane-entry-label">{entry.label}</span>
+                <span className="pane-entry-text">
+                  {entry.text}
+                  {entry.isLive && <span className="caret" />}
+                </span>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 

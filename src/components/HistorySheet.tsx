@@ -1,38 +1,36 @@
 import type { ConversationItem, LanguageCode } from "../types/translation";
 import { LANGUAGE_LABELS } from "../types/translation";
+import { groupBySessions } from "../hooks/useConversationHistory";
 import { Icon } from "./Icon";
 
 type Props = { items: ConversationItem[] };
 
-const LANG_CODE: Record<LanguageCode, string> = { ja: "JA", en: "EN", zh: "ZH", ko: "KO" };
+const LANG_FLAG: Record<LanguageCode, string> = { ja: "🇯🇵", en: "🇺🇸", zh: "🇨🇳", ko: "🇰🇷" };
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
 }
 
-function groupByDate(items: ConversationItem[]) {
-  const map = new Map<string, ConversationItem[]>();
-  for (const item of items) {
-    const d = new Date(item.createdAt);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(today.getDate() - 1);
-    let label: string;
-    if (d.toDateString() === today.toDateString()) {
-      label = "今日";
-    } else if (d.toDateString() === yesterday.toDateString()) {
-      label = "昨日";
-    } else {
-      label = d.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" });
-    }
-    if (!map.has(label)) map.set(label, []);
-    map.get(label)!.push(item);
-  }
-  return map;
+function formatDate(iso: string) {
+  const d = new Date(iso);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  if (d.toDateString() === today.toDateString()) return "今日";
+  if (d.toDateString() === yesterday.toDateString()) return "昨日";
+  return d.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" });
 }
 
 export function Sidebar({ items }: Props) {
-  const groups = groupByDate([...items].reverse());
+  const sessions = groupBySessions(items);
+
+  // group sessions by date
+  const byDate = new Map<string, typeof sessions>();
+  for (const s of sessions) {
+    const label = formatDate(s.startedAt);
+    if (!byDate.has(label)) byDate.set(label, []);
+    byDate.get(label)!.push(s);
+  }
 
   return (
     <aside className="sidebar">
@@ -51,34 +49,40 @@ export function Sidebar({ items }: Props) {
       </div>
 
       <div className="sessions">
-        {items.length === 0 ? (
+        {sessions.length === 0 ? (
           <div className="sessions-empty">履歴はありません</div>
         ) : (
-          Array.from(groups.entries()).map(([day, group]) => (
+          Array.from(byDate.entries()).map(([day, daySessions]) => (
             <div key={day}>
               <div className="day-label">{day}</div>
-              {group.map((item) => (
-                <div key={item.id} className="session">
-                  <div>
-                    <div className="session-title">
-                      {item.sourceText || item.translatedText || "（空）"}
+              {daySessions.map((sess) => {
+                const langs = new Set<LanguageCode>();
+                for (const item of sess.items) {
+                  langs.add(item.sourceLanguage);
+                  langs.add(item.targetLanguage);
+                }
+                const preview = sess.items[0]?.sourceText || sess.items[0]?.translatedText || "（空）";
+                return (
+                  <div key={sess.sessionId} className="session">
+                    <div className="session-body">
+                      <div className="session-title">{preview}</div>
+                      <div className="session-meta">
+                        <span className="session-langs">
+                          {Array.from(langs).map(l => (
+                            <span key={l} title={LANGUAGE_LABELS[l]}>{LANG_FLAG[l]}</span>
+                          ))}
+                        </span>
+                        <span className="session-count">{sess.items.length}件</span>
+                      </div>
                     </div>
-                    <div className="session-meta">
-                      <span className="session-langs">
-                        <span>{LANG_CODE[item.sourceLanguage]}</span>
-                        <span>→</span>
-                        <span>{LANGUAGE_LABELS[item.targetLanguage]}</span>
-                      </span>
-                    </div>
+                    <span className="session-time">{formatTime(sess.startedAt)}</span>
                   </div>
-                  <span className="session-time">{formatTime(item.createdAt)}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ))
         )}
       </div>
-
     </aside>
   );
 }

@@ -2,7 +2,13 @@ import { useState, useCallback } from "react";
 import type { ConversationItem } from "../types/translation";
 
 const STORAGE_KEY = "voice-bridge-history";
-const MAX_ITEMS = 50;
+const MAX_ITEMS = 200;
+
+export type SessionGroup = {
+  sessionId: string;
+  startedAt: string;
+  items: ConversationItem[];
+};
 
 function loadFromStorage(): ConversationItem[] {
   try {
@@ -11,6 +17,18 @@ function loadFromStorage(): ConversationItem[] {
   } catch {
     return [];
   }
+}
+
+export function groupBySessions(items: ConversationItem[]): SessionGroup[] {
+  const map = new Map<string, SessionGroup>();
+  for (const item of [...items].reverse()) {
+    if (!map.has(item.sessionId)) {
+      map.set(item.sessionId, { sessionId: item.sessionId, startedAt: item.createdAt, items: [] });
+    }
+    map.get(item.sessionId)!.items.push(item);
+  }
+  // return sessions newest-first, items within each session oldest-first
+  return Array.from(map.values()).reverse();
 }
 
 export function useConversationHistory() {

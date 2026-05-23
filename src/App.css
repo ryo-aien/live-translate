@@ -227,9 +227,22 @@ input  { font-family: inherit; }
   font-size: 12.5px; font-weight: 500; color: var(--ink); line-height: 1.35;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.session-body { min-width: 0; }
 .session-meta { display: flex; align-items: center; gap: 6px; margin-top: 3px; font-size: 10.5px; color: var(--ink-3); }
-.session-langs { display: inline-flex; gap: 3px; }
+.session-langs { display: inline-flex; gap: 2px; font-size: 13px; }
+.session-count { color: var(--ink-4); }
 .session-time { font-size: 10.5px; color: var(--ink-4); font-family: var(--font-mono); white-space: nowrap; }
+
+/* ── Log session groups ── */
+.log-session { margin-bottom: 12px; }
+.log-session-hd {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 4px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.log-session-num { font-size: 11px; font-weight: 600; color: var(--ink-3); letter-spacing: .04em; text-transform: uppercase; }
+.log-session-time { font-size: 10.5px; color: var(--ink-4); font-family: var(--font-mono); }
 
 .sessions-empty { padding: 32px 16px; text-align: center; color: var(--ink-4); font-size: 12px; }
 
@@ -383,8 +396,33 @@ input  { font-family: inherit; }
 
 .pane-body {
   flex: 1; min-height: 0;
-  display: flex; flex-direction: column; gap: 14px;
-  overflow: hidden;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+.pane-empty {
+  color: var(--ink-4); font-size: 14px; padding-top: 4px;
+}
+
+.pane-log {
+  display: flex; flex-direction: column; gap: 20px;
+}
+
+.pane-entry {
+  display: flex; flex-direction: column; gap: 4px;
+}
+
+.pane-entry-label {
+  font-size: 10px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; font-family: var(--font-ui);
+}
+.pane-entry--src .pane-entry-label { color: var(--accent); }
+.pane-entry--tx  .pane-entry-label { color: var(--ink-3); }
+
+.pane-entry-text {
+  font-size: 22px; line-height: 1.5; font-weight: 500;
+  color: var(--ink); font-family: var(--font-jp);
+  word-break: break-word;
 }
 
 .transcript {

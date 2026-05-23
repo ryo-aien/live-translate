@@ -21,6 +21,7 @@ export type AppErrorCode =
 
 export type ConversationItem = {
   id: string;
+  sessionId: string;
   direction: Direction;
   sourceLanguage: LanguageCode;
   targetLanguage: LanguageCode;
