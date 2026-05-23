@@ -73,76 +73,151 @@ npm start
 
 ## Cloud Run デプロイ (Terraform)
 
-### 前提
+### 必要なツール
 
 - [Terraform](https://developer.hashicorp.com/terraform/install) >= 1.5
 - [gcloud CLI](https://cloud.google.com/sdk/docs/install)
 - Docker
 
-### 手順
+### 必要な GCP 権限
 
-#### 1. 認証
+デプロイを行うアカウントに以下のロールを付与してください（`roles/owner` があればスキップ可）。
+
+```bash
+# サービスアカウントの作成・管理
+gcloud projects add-iam-policy-binding your-gcp-project-id \
+  --member="user:your-email@example.com" \
+  --role="roles/iam.serviceAccountAdmin"
+
+# API の有効化・無効化
+gcloud projects add-iam-policy-binding your-gcp-project-id \
+  --member="user:your-email@example.com" \
+  --role="roles/serviceusage.serviceUsageAdmin"
+
+# Artifact Registry リポジトリの作成・管理
+gcloud projects add-iam-policy-binding your-gcp-project-id \
+  --member="user:your-email@example.com" \
+  --role="roles/artifactregistry.admin"
+
+# Secret Manager のシークレット作成・管理
+gcloud projects add-iam-policy-binding your-gcp-project-id \
+  --member="user:your-email@example.com" \
+  --role="roles/secretmanager.admin"
+
+# Cloud Run サービスのデプロイ・管理
+gcloud projects add-iam-policy-binding your-gcp-project-id \
+  --member="user:your-email@example.com" \
+  --role="roles/run.admin"
+```
+
+---
+
+### 初回のみ
+
+#### 1. gcloud 認証
 
 ```bash
 make auth
 ```
 
-#### 2. 初回セットアップ
+#### 2. 請求先アカウントの確認・リンク
 
-**既存プロジェクトを使う場合**
-
-```bash
-make bootstrap PROJECT_ID=your-gcp-project-id
-```
-
-**プロジェクトを新規作成する場合**
+Artifact Registry / Secret Manager / Cloud Run は請求先アカウントのリンクが必要です。
 
 ```bash
 # 請求先アカウント ID を確認
 gcloud billing accounts list
 
-# 組織配下に作成
-make bootstrap \
-  PROJECT_ID=your-gcp-project-id \
-  BILLING_ACCOUNT=XXXXXX-XXXXXX-XXXXXX \
-  ORG_ID=000000000000
-
-# フォルダ配下に作成
-make bootstrap \
-  PROJECT_ID=your-gcp-project-id \
-  BILLING_ACCOUNT=XXXXXX-XXXXXX-XXXXXX \
-  FOLDER_ID=000000000000
+# プロジェクトにリンク（既存プロジェクトで未リンクの場合）
+gcloud billing projects link your-gcp-project-id \
+  --billing-account=XXXXXX-XXXXXX-XXXXXX
 ```
 
-`bootstrap` は以下をまとめて実行します：
-1. Terraform init
+#### 3. インフラ構築
+
+API 有効化 / Artifact Registry / Secret Manager / サービスアカウントを作成します。  
+Cloud Run はこの時点でイメージが存在しないため、次のステップで作成します。
+
+**既存の GCP プロジェクトを使う場合**
+
+```bash
+make bootstrap PROJECT_ID=your-gcp-project-id
+```
+
+**GCP プロジェクトを新規作成する場合**
+
+```bash
+make bootstrap \
+  PROJECT_ID=your-new-project-id \
+  BILLING_ACCOUNT=XXXXXX-XXXXXX-XXXXXX
+```
+
+以下がまとめて実行されます：
+1. Terraform 初期化
 2. GCP プロジェクト作成（新規の場合）
-3. API 有効化 / Artifact Registry / Secret Manager / Cloud Run / IAM 構築
-4. OPENAI_API_KEY を Secret Manager に登録（対話入力）
+3. API 有効化 / Artifact Registry / Secret Manager / IAM 構築
+4. `OPENAI_API_KEY` を Secret Manager に登録（対話入力）
 
-#### 3. デプロイ
+#### 4. 初回デプロイ
+
+```bash
+make deploy PROJECT_ID=your-gcp-project-id
+```
+
+Docker イメージをビルドして Artifact Registry へ push し、Cloud Run サービスを作成します。  
+完了するとサービス URL が表示されます。
+
+---
+
+### 2回目以降（コード更新時）
 
 ```bash
 make deploy PROJECT_ID=your-gcp-project-id
 ```
 
-`IMAGE_TAG` は未指定の場合、git の short SHA が自動使用されます。
+ローカルのソースコードをビルドして Cloud Run に反映します。
 
-#### 更新デプロイ
-
-コードを変更したら同じコマンドで再デプロイできます。
-
-```bash
-make deploy PROJECT_ID=your-gcp-project-id
-```
+---
 
 ### 個別コマンド
 
 ```bash
-make plan    # terraform plan（変更内容の確認）
+make plan    # インフラ変更内容の確認（適用はしない）
 make apply   # インフラのみ更新
 make push    # イメージのビルドと push のみ
 make secret  # OPENAI_API_KEY を Secret Manager に再登録
+```
+
+---
+
+### トラブルシューティング
+
+#### `BILLING_DISABLED` エラー
+
+請求先アカウントがプロジェクトにリンクされていません。上記「2. 請求先アカウントの確認・リンク」を実行してください。
+
+#### `alreadyExists` エラー（サービスアカウント等）
+
+過去の実行で一部リソースが作成済みの場合、Terraform の state に取り込む必要があります：
+
+```bash
+terraform -chdir=infra import \
+  -var="project_id=your-gcp-project-id" \
+  -var="region=asia-northeast1" \
+  -var="image_tag=dummy" \
+  google_service_account.cloudrun \
+  "projects/your-gcp-project-id/serviceAccounts/voice-bridge-run@your-gcp-project-id.iam.gserviceaccount.com"
+```
+
+その後 `make bootstrap PROJECT_ID=your-gcp-project-id` を再実行してください。
+
+#### `PROJECT_ID` が意図しない値になる
+
+`PROJECT_ID` を省略すると `gcloud config get-value project` の値が使われます。常に明示的に指定してください：
+
+```bash
+make bootstrap PROJECT_ID=your-gcp-project-id
+make deploy PROJECT_ID=your-gcp-project-id
 ```
 
 ## アーキテクチャ

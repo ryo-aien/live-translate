@@ -44,21 +44,18 @@ resource "google_project_service" "run" {
   project            = var.project_id
   service            = "run.googleapis.com"
   disable_on_destroy = false
-  depends_on         = [google_project.app, google_billing_project_info.app]
 }
 
 resource "google_project_service" "artifact_registry" {
   project            = var.project_id
   service            = "artifactregistry.googleapis.com"
   disable_on_destroy = false
-  depends_on         = [google_project.app, google_billing_project_info.app]
 }
 
 resource "google_project_service" "secret_manager" {
   project            = var.project_id
   service            = "secretmanager.googleapis.com"
   disable_on_destroy = false
-  depends_on         = [google_project.app, google_billing_project_info.app]
 }
 
 # ── Artifact Registry ─────────────────────────────────────────────────────

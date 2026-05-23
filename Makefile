@@ -33,13 +33,16 @@ help:
 
 auth:
 	gcloud auth login
-	gcloud auth application-default login
+	gcloud auth application-default login \
 	  --scopes=openid,https://www.googleapis.com/auth/userinfo.email,https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/accounts.reauth
 
 # ── 初回セットアップ ────────────────────────────────────────────────────────
 
 # 既存プロジェクト向け: make bootstrap PROJECT_ID=xxx
 # 新規プロジェクト向け: make bootstrap PROJECT_ID=xxx BILLING_ACCOUNT=xxx ORG_ID=xxx
+#
+# bootstrap は API 有効化 / Artifact Registry / Secret Manager / SA までを構築する。
+# Cloud Run は初回イメージが存在しないため make deploy で別途作成する。
 bootstrap: init
 	@if [ -n "$(BILLING_ACCOUNT)" ]; then \
 	  terraform -chdir=infra apply \
@@ -50,12 +53,28 @@ bootstrap: init
 	    -var="billing_account=$(BILLING_ACCOUNT)" \
 	    $(if $(ORG_ID),-var="org_id=$(ORG_ID)",) \
 	    $(if $(FOLDER_ID),-var="folder_id=$(FOLDER_ID)",) \
+	    -target=google_project.app \
+	    -target=google_billing_project_info.app \
+	    -target=google_project_service.run \
+	    -target=google_project_service.artifact_registry \
+	    -target=google_project_service.secret_manager \
+	    -target=google_artifact_registry_repository.app \
+	    -target=google_service_account.cloudrun \
+	    -target=google_secret_manager_secret.openai_api_key \
+	    -target=google_secret_manager_secret_iam_member.cloudrun_secret_access \
 	    -auto-approve; \
 	else \
 	  terraform -chdir=infra apply \
 	    -var="project_id=$(PROJECT_ID)" \
 	    -var="region=$(REGION)" \
 	    -var="image_tag=$(IMAGE_TAG)" \
+	    -target=google_project_service.run \
+	    -target=google_project_service.artifact_registry \
+	    -target=google_project_service.secret_manager \
+	    -target=google_artifact_registry_repository.app \
+	    -target=google_service_account.cloudrun \
+	    -target=google_secret_manager_secret.openai_api_key \
+	    -target=google_secret_manager_secret_iam_member.cloudrun_secret_access \
 	    -auto-approve; \
 	fi
 	@$(MAKE) secret PROJECT_ID=$(PROJECT_ID)
