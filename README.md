@@ -75,13 +75,44 @@ npm start
 
 ### 必要なツール
 
+インストールされていない場合は各リンクを参照してください。
+
 - [Terraform](https://developer.hashicorp.com/terraform/install) >= 1.5
 - [gcloud CLI](https://cloud.google.com/sdk/docs/install)
 - Docker
 
-### 必要な GCP 権限
+```bash
+terraform -version
+gcloud --version
+docker --version
+```
 
-デプロイを行うアカウントに以下のロールを付与してください（`roles/owner` があればスキップ可）。
+---
+
+### 初回デプロイ
+
+#### 1. gcloud 認証
+
+```bash
+make auth
+```
+
+#### 2. 請求先アカウントをプロジェクトにリンク
+
+Artifact Registry / Secret Manager / Cloud Run の利用に必要です。
+
+```bash
+# 請求先アカウント ID を確認
+gcloud billing accounts list
+
+# プロジェクトにリンク
+gcloud billing projects link your-gcp-project-id \
+  --billing-account=XXXXXX-XXXXXX-XXXXXX
+```
+
+#### 3. 必要な権限を付与
+
+`roles/owner` があればスキップ可。
 
 ```bash
 # サービスアカウントの作成・管理
@@ -110,33 +141,10 @@ gcloud projects add-iam-policy-binding your-gcp-project-id \
   --role="roles/run.admin"
 ```
 
----
-
-### 初回のみ
-
-#### 1. gcloud 認証
-
-```bash
-make auth
-```
-
-#### 2. 請求先アカウントの確認・リンク
-
-Artifact Registry / Secret Manager / Cloud Run は請求先アカウントのリンクが必要です。
-
-```bash
-# 請求先アカウント ID を確認
-gcloud billing accounts list
-
-# プロジェクトにリンク（既存プロジェクトで未リンクの場合）
-gcloud billing projects link your-gcp-project-id \
-  --billing-account=XXXXXX-XXXXXX-XXXXXX
-```
-
-#### 3. インフラ構築
+#### 4. インフラ構築
 
 API 有効化 / Artifact Registry / Secret Manager / サービスアカウントを作成します。  
-Cloud Run はこの時点でイメージが存在しないため、次のステップで作成します。
+最後に `OPENAI_API_KEY` の入力を求められます。
 
 **既存の GCP プロジェクトを使う場合**
 
@@ -152,19 +160,14 @@ make bootstrap \
   BILLING_ACCOUNT=XXXXXX-XXXXXX-XXXXXX
 ```
 
-以下がまとめて実行されます：
-1. Terraform 初期化
-2. GCP プロジェクト作成（新規の場合）
-3. API 有効化 / Artifact Registry / Secret Manager / IAM 構築
-4. `OPENAI_API_KEY` を Secret Manager に登録（対話入力）
+#### 5. 初回デプロイ
 
-#### 4. 初回デプロイ
+Docker イメージをビルドして Artifact Registry へ push し、Cloud Run サービスを作成します。
 
 ```bash
 make deploy PROJECT_ID=your-gcp-project-id
 ```
 
-Docker イメージをビルドして Artifact Registry へ push し、Cloud Run サービスを作成します。  
 完了するとサービス URL が表示されます。
 
 ---
@@ -174,8 +177,6 @@ Docker イメージをビルドして Artifact Registry へ push し、Cloud Run
 ```bash
 make deploy PROJECT_ID=your-gcp-project-id
 ```
-
-ローカルのソースコードをビルドして Cloud Run に反映します。
 
 ---
 
@@ -194,7 +195,7 @@ make secret  # OPENAI_API_KEY を Secret Manager に再登録
 
 #### `BILLING_DISABLED` エラー
 
-請求先アカウントがプロジェクトにリンクされていません。上記「2. 請求先アカウントの確認・リンク」を実行してください。
+請求先アカウントがプロジェクトにリンクされていません。手順 2 を実行してください。
 
 #### `alreadyExists` エラー（サービスアカウント等）
 
