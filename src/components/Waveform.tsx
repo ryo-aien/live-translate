@@ -1,31 +1,50 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
-type Props = { active: boolean; bars?: number };
+type Props = { active: boolean; stream?: MediaStream | null; bars?: number };
 
-export function Waveform({ active, bars = 14 }: Props) {
-  const [heights, setHeights] = useState<number[]>(() => Array(bars).fill(20));
+export function Waveform({ active, stream, bars = 14 }: Props) {
+  const [heights, setHeights] = useState<number[]>(() => Array(bars).fill(18));
+  const rafRef = useRef<number>(0);
 
   useEffect(() => {
-    if (!active) {
+    if (!active || !stream) {
       setHeights(Array(bars).fill(18));
       return;
     }
-    let raf: number;
-    let t = 0;
+
+    const ctx = new AudioContext();
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 512;
+    analyser.smoothingTimeConstant = 0.75;
+
+    const source = ctx.createMediaStreamSource(stream);
+    source.connect(analyser);
+
+    const data = new Uint8Array(analyser.frequencyBinCount);
+
     const tick = () => {
-      t += 1;
+      analyser.getByteFrequencyData(data);
+      // use lower ~60% of frequency bins (covers speech range ≈ 0–5 kHz)
+      const usable = Math.floor(data.length * 0.6);
+      const step = Math.floor(usable / bars);
       setHeights(
         Array.from({ length: bars }, (_, i) => {
-          const base = 35 + Math.sin((t + i * 8) / 6) * 18;
-          const noise = Math.random() * 35;
-          return Math.max(10, Math.min(95, base + noise));
+          let sum = 0;
+          for (let j = 0; j < step; j++) sum += data[i * step + j];
+          const avg = sum / step / 255;
+          return Math.max(10, avg * 82 + 10);
         })
       );
-      raf = requestAnimationFrame(tick);
+      rafRef.current = requestAnimationFrame(tick);
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [active, bars]);
+    rafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      source.disconnect();
+      ctx.close();
+    };
+  }, [active, stream, bars]);
 
   return (
     <div className="wave">

@@ -18,6 +18,7 @@ export function useDualTranslation(callbacks: Callbacks) {
   const [state, setState]           = useState<DualState>("idle");
   const [activeSpeaker, setActiveSpeaker] = useState<"me" | "partner">("me");
   const [audioEnabled, setAudioEnabled]   = useState(true);
+  const [stream, setStream]               = useState<MediaStream | null>(null);
 
   const cbRef            = useRef(callbacks);
   const activeSpeakerRef = useRef<"me" | "partner">("me");
@@ -71,6 +72,7 @@ export function useDualTranslation(callbacks: Callbacks) {
     meSessionRef.current?.pc.close();      meSessionRef.current      = null;
     partnerSessionRef.current?.pc.close(); partnerSessionRef.current = null;
     streamRef.current?.getTracks().forEach(t => t.stop()); streamRef.current = null;
+    setStream(null);
     meInputRef.current = ""; meOutputRef.current = "";
     partnerInputRef.current = ""; partnerOutRef.current = "";
   }, []);
@@ -144,6 +146,7 @@ export function useDualTranslation(callbacks: Callbacks) {
         return;
       }
       streamRef.current = stream;
+      setStream(stream);
 
       let secretMe: string, secretPartner: string;
       try {
@@ -190,5 +193,5 @@ export function useDualTranslation(callbacks: Callbacks) {
     setState("idle");
   }, [cleanup, flushSpeaker]);
 
-  return { state, activeSpeaker, audioEnabled, toggleAudio, start, stop, setSpeaker };
+  return { state, activeSpeaker, audioEnabled, toggleAudio, start, stop, setSpeaker, stream };
 }

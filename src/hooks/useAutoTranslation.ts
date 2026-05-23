@@ -28,6 +28,7 @@ type Session = {
 export function useAutoTranslation(callbacks: Callbacks) {
   const [autoState, setAutoState] = useState<AutoState>("idle");
   const [activeSpeaker, setActiveSpeaker] = useState<ActiveSpeaker>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
 
   const cbRef = useRef(callbacks);
   useEffect(() => { cbRef.current = callbacks; });
@@ -104,6 +105,7 @@ export function useAutoTranslation(callbacks: Callbacks) {
     partnerSessionRef.current = null;
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
+    setStream(null);
     meInputRef.current = "";
     meOutputRef.current = "";
     partnerInputRef.current = "";
@@ -202,6 +204,7 @@ export function useAutoTranslation(callbacks: Callbacks) {
         return;
       }
       streamRef.current = stream;
+      setStream(stream);
 
       // fetch both client secrets in parallel
       let secretMe: string;
@@ -263,5 +266,5 @@ export function useAutoTranslation(callbacks: Callbacks) {
     setActiveSpeaker(null);
   }, [cleanup]);
 
-  return { autoState, activeSpeaker, start, stop };
+  return { autoState, activeSpeaker, start, stop, stream };
 }

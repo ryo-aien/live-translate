@@ -56,11 +56,6 @@ export function TranslationPane({ who, lang, entries }: Props) {
         )}
       </div>
 
-      <div className="pane-ft">
-        <div className="pane-ft-meta">
-          <span><b>信頼度</b> —</span>
-        </div>
-      </div>
     </section>
   );
 }

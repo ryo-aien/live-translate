@@ -8,8 +8,7 @@ type Props = {
   elapsed: number;
   speaker: "me" | "partner";
   onSwapSpeaker: () => void;
-  autoDetect: boolean;
-  onToggleAutoDetect: () => void;
+  stream?: MediaStream | null;
   disabled?: boolean;
 };
 
@@ -26,26 +25,15 @@ export function MicDock({
   elapsed,
   speaker,
   onSwapSpeaker,
-  autoDetect,
-  onToggleAutoDetect,
+  stream,
 }: Props) {
   return (
     <div className="dock">
-      <button
-        className={`iconbtn${autoDetect ? " active" : ""}`}
-        title="話者自動判定"
-        onClick={onToggleAutoDetect}
-      >
-        <Icon name="sparkle" size={16} />
-      </button>
-
-      <div className="dock-divider" />
-
       <button className="speaker-switch" onClick={onSwapSpeaker} type="button">
         話者: <b>{speaker === "me" ? "自分" : "相手"}</b>
       </button>
 
-      <Waveform active={recording} />
+      <Waveform active={recording} stream={stream} />
 
       <span className="dock-timer">{formatClock(elapsed)}</span>
 

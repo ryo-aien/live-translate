@@ -24,7 +24,7 @@ const LANG_INFO: Record<LanguageCode, { flag: string; code: string }> = {
 
 export default function App() {
   const [partnerLanguage, setPartnerLanguage] = useState<LanguageCode>("en");
-  const [layout, setLayout]       = useState<Layout>("split");
+  const [layout]                   = useState<Layout>("split");
   const [dockSpeaker, setDockSpeaker] = useState<"me" | "partner">("me");
   const [autoMode, setAutoMode]   = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -71,12 +71,13 @@ export default function App() {
   // ── dual session hook (manual mode) ──
   const {
     state: dualState,
-    activeSpeaker: dualSpeaker,
+    activeSpeaker: _dualSpeaker,
     audioEnabled,
     toggleAudio,
     start: dualStart,
     stop:  dualStop,
     setSpeaker: dualSetSpeaker,
+    stream: dualStream,
   } = useDualTranslation({
     onMeInput:       useCallback((t) => setMeInput(t),       []),
     onMeOutput:      useCallback((t) => setMeOutput(t),      []),
@@ -92,6 +93,7 @@ export default function App() {
     activeSpeaker: autoSpeaker,
     start: autoStart,
     stop:  autoStop,
+    stream: autoStream,
   } = useAutoTranslation({
     onMeInput:       useCallback((t) => setMeInput(t),       []),
     onMeOutput:      useCallback((t) => setMeOutput(t),      []),
@@ -172,6 +174,7 @@ export default function App() {
   // ── dock state ──
   const isRecording  = autoMode ? autoState === "listening" : dualState === "ready";
   const isConnecting = autoMode ? autoState === "starting"  : dualState === "connecting";
+  const activeStream = autoMode ? autoStream : dualStream;
 
   // ── which speaker is currently active ──
   const effectiveSpeaker = autoMode ? autoSpeaker : (dualState === "ready" ? dockSpeaker : null);
@@ -353,8 +356,8 @@ export default function App() {
           elapsed={elapsed}
           speaker={dockSpeaker}
           onSwapSpeaker={handleSwapSpeaker}
-          autoDetect={autoMode}
-          onToggleAutoDetect={handleToggleAutoMode}
+          stream={activeStream}
+
         />
 
         {/* Stage footer */}
