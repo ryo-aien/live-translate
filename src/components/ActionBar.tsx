@@ -56,7 +56,7 @@ export function MicDock({
           isConnecting ? "connecting" : "",
         ].filter(Boolean).join(" ")}
         onClick={onMicClick}
-        title={recording ? "停止" : "録音開始"}
+        title={recording ? "翻訳中 (停止)" : "翻訳開始"}
         type="button"
       >
         {isConnecting ? (

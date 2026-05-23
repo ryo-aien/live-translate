@@ -179,6 +179,20 @@ export default function App() {
     [autoMode, autoStart, autoStop]
   );
 
+  // ── swap speaker ──
+  const handleSwapSpeaker = useCallback(() => {
+    const next: "me" | "partner" = dockSpeaker === "me" ? "partner" : "me";
+    setDockSpeaker(next);
+    if (!autoMode && manualIsBusy) {
+      const newDir: Direction = next === "me" ? "me_to_partner" : "partner_to_me";
+      manualStop();
+      setManualInput(""); setManualOutput("");
+      setErrorMessage(null);
+      setActiveDirection(newDir);
+      void manualStart(newDir, newDir === "me_to_partner" ? partnerLanguage : "ja");
+    }
+  }, [dockSpeaker, autoMode, manualIsBusy, manualStop, manualStart, partnerLanguage]);
+
   // ── dock mic click ──
   const handleMicClick = useCallback(() => {
     if (autoMode) {
@@ -221,15 +235,17 @@ export default function App() {
     : null;
 
   // ── pane content ──
+  // me_to_partner: 自分=source(JA transcript), 相手側=target(EN translation)
+  // partner_to_me: 相手側=source(partner transcript), 自分=target(JA translation)
   const mePane = {
-    transcript:  autoMode ? meInput  : (activeDirection === "me_to_partner"  ? manualInput  : ""),
-    translation: autoMode ? meOutput : (activeDirection === "me_to_partner"  ? manualOutput : ""),
-    showCaret:   autoMode ? activeSpeaker === "me"      : activeDirection === "me_to_partner",
+    transcript:  autoMode ? meInput       : (activeDirection === "me_to_partner"  ? manualInput  : ""),
+    translation: autoMode ? meOutput      : (activeDirection === "partner_to_me"  ? manualOutput : ""),
+    showCaret: autoMode ? activeSpeaker === "me" : activeDirection !== null,
   };
   const partnerPane = {
-    translation: autoMode ? partnerOutput : (activeDirection === "partner_to_me" ? manualOutput : ""),
-    transcript:  autoMode ? partnerInput  : (activeDirection === "partner_to_me" ? manualInput  : ""),
-    showCaret:   autoMode ? activeSpeaker === "partner" : activeDirection === "partner_to_me",
+    transcript:  autoMode ? partnerInput  : (activeDirection === "partner_to_me"  ? manualInput  : ""),
+    translation: autoMode ? partnerOutput : (activeDirection === "me_to_partner"  ? manualOutput : ""),
+    showCaret: autoMode ? activeSpeaker === "partner" : activeDirection !== null,
   };
 
   return (
@@ -342,14 +358,15 @@ export default function App() {
               <TranslationPane
                 who="相手側 (Other)"
                 lang={partnerLanguage}
-                isSource={false}
+                isSource={autoMode ? activeSpeaker === "partner" : activeDirection === "partner_to_me"}
+                transcript={partnerPane.transcript}
                 translation={partnerPane.translation}
                 showCaret={partnerPane.showCaret}
               />
               <TranslationPane
                 who="自分 (You)"
                 lang="ja"
-                isSource
+                isSource={autoMode ? activeSpeaker !== "partner" : activeDirection !== "partner_to_me"}
                 transcript={mePane.transcript}
                 translation={mePane.translation}
                 showCaret={mePane.showCaret}
@@ -365,7 +382,7 @@ export default function App() {
           onMicClick={handleMicClick}
           elapsed={elapsed}
           speaker={dockSpeaker}
-          onSwapSpeaker={() => setDockSpeaker((s) => (s === "me" ? "partner" : "me"))}
+          onSwapSpeaker={handleSwapSpeaker}
           autoDetect={autoMode}
           onToggleAutoDetect={handleToggleAutoMode}
         />

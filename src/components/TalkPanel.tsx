@@ -41,10 +41,6 @@ export function TranslationPane({
           </div>
         ) : (
           <>
-            <div className="tx-label">
-              <span className="tx-live-dot" />
-              翻訳 · {LANGUAGE_LABELS[lang]}
-            </div>
             <div className={`translation${!translation ? " empty" : ""}`}>
               {translation || "ここに翻訳が表示されます"}
               {showCaret && translation && <span className="caret" />}
