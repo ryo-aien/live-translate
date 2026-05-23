@@ -71,14 +71,78 @@ npm run build
 npm start
 ```
 
-## Cloud Run デプロイ
+## Cloud Run デプロイ (Terraform)
+
+### 前提
+
+- [Terraform](https://developer.hashicorp.com/terraform/install) >= 1.5
+- [gcloud CLI](https://cloud.google.com/sdk/docs/install)
+- Docker
+
+### 手順
+
+#### 1. 認証
 
 ```bash
-gcloud run deploy voice-bridge \
-  --source . \
-  --region asia-northeast1 \
-  --set-env-vars OPENAI_API_KEY=sk-xxxx \
-  --allow-unauthenticated
+make auth
+```
+
+#### 2. 初回セットアップ
+
+**既存プロジェクトを使う場合**
+
+```bash
+make bootstrap PROJECT_ID=your-gcp-project-id
+```
+
+**プロジェクトを新規作成する場合**
+
+```bash
+# 請求先アカウント ID を確認
+gcloud billing accounts list
+
+# 組織配下に作成
+make bootstrap \
+  PROJECT_ID=your-gcp-project-id \
+  BILLING_ACCOUNT=XXXXXX-XXXXXX-XXXXXX \
+  ORG_ID=000000000000
+
+# フォルダ配下に作成
+make bootstrap \
+  PROJECT_ID=your-gcp-project-id \
+  BILLING_ACCOUNT=XXXXXX-XXXXXX-XXXXXX \
+  FOLDER_ID=000000000000
+```
+
+`bootstrap` は以下をまとめて実行します：
+1. Terraform init
+2. GCP プロジェクト作成（新規の場合）
+3. API 有効化 / Artifact Registry / Secret Manager / Cloud Run / IAM 構築
+4. OPENAI_API_KEY を Secret Manager に登録（対話入力）
+
+#### 3. デプロイ
+
+```bash
+make deploy PROJECT_ID=your-gcp-project-id
+```
+
+`IMAGE_TAG` は未指定の場合、git の short SHA が自動使用されます。
+
+#### 更新デプロイ
+
+コードを変更したら同じコマンドで再デプロイできます。
+
+```bash
+make deploy PROJECT_ID=your-gcp-project-id
+```
+
+### 個別コマンド
+
+```bash
+make plan    # terraform plan（変更内容の確認）
+make apply   # インフラのみ更新
+make push    # イメージのビルドと push のみ
+make secret  # OPENAI_API_KEY を Secret Manager に再登録
 ```
 
 ## アーキテクチャ

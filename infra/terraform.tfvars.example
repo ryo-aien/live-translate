@@ -1,0 +1,15 @@
+# ── 必須 ──────────────────────────────────────────────────────────────────
+project_id = "your-gcp-project-id"
+
+# ── 任意 ──────────────────────────────────────────────────────────────────
+region        = "asia-northeast1"
+image_tag     = "latest"
+max_instances = 3
+cpu           = "1"
+memory        = "512Mi"
+
+# ── プロジェクト新規作成する場合 ──────────────────────────────────────────
+# create_project  = true
+# billing_account = "XXXXXX-XXXXXX-XXXXXX"  # gcloud billing accounts list
+# org_id          = "000000000000"           # gcloud organizations list   (org配下の場合)
+# folder_id       = "000000000000"           # gcloud resource-manager folders list (folder配下の場合)
