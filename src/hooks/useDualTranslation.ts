@@ -17,12 +17,12 @@ type Session = { pc: RTCPeerConnection; audio: HTMLAudioElement };
 export function useDualTranslation(callbacks: Callbacks) {
   const [state, setState]           = useState<DualState>("idle");
   const [activeSpeaker, setActiveSpeaker] = useState<"me" | "partner">("me");
-  const [audioEnabled, setAudioEnabled]   = useState(true);
+  const [audioEnabled, setAudioEnabled]   = useState(false);
   const [stream, setStream]               = useState<MediaStream | null>(null);
 
   const cbRef            = useRef(callbacks);
   const activeSpeakerRef = useRef<"me" | "partner">("me");
-  const audioEnabledRef  = useRef(true);
+  const audioEnabledRef  = useRef(false);
 
   useEffect(() => { cbRef.current = callbacks; });
 
